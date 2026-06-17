@@ -1,5 +1,5 @@
 // URL base da API do backend.
-const URL_API = "http://localhost:3000/api";
+const URL_API = "/api";
 
 // Elementos principais da tela de recuperação.
 const formularioRecuperacao = document.getElementById("formularioRecuperacao");

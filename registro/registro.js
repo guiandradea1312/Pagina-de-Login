@@ -1,5 +1,5 @@
 // URL base da API do backend.
-const URL_API = "http://localhost:3000/api";
+const URL_API = "/api";
 // Chave do token de autenticação.
 const CHAVE_TOKEN = "authToken";
 

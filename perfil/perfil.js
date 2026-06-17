@@ -1,5 +1,5 @@
 // URL base da API e chave do token.
-const URL_API = "http://localhost:3000/api";
+const URL_API = "/api";
 const CHAVE_TOKEN = "authToken";
 
 // Formata telefone para exibição amigável no perfil.
