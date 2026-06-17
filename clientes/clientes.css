@@ -188,6 +188,19 @@ button {
   font-size: 14px;
 }
 
+.link-template {
+  display: inline-block;
+  margin-top: 4px;
+  color: #c2410c;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.link-template:hover {
+  text-decoration: underline;
+}
+
 .mensagem {
   min-height: 20px;
   margin: 12px 0 0;

@@ -265,6 +265,14 @@ function parseClientRow(row) {
   };
 }
 
+function isClientRowEmpty(client) {
+  return !client.nome
+    && !client.cpf
+    && !client.telefone
+    && !client.email
+    && !client.cidade;
+}
+
 async function createSession(userId) {
   const token = crypto.randomBytes(24).toString("hex");
   await query("INSERT INTO sessions (token, user_id) VALUES ($1, $2)", [token, userId]);
@@ -571,6 +579,11 @@ async function startServer() {
       for (let indice = 0; indice < rows.length; indice += 1) {
         const linha = indice + 2;
         const cliente = parseClientRow(rows[indice]);
+
+        if (isClientRowEmpty(cliente)) {
+          // Linhas completamente vazias da planilha devem ser ignoradas.
+          continue;
+        }
 
         if (!cliente.nome || !cliente.cpf || !cliente.cidade) {
           erros.push({ linha, message: "Informe nome, CPF e cidade." });
