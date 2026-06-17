@@ -3,46 +3,25 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const path = require("path");
-const sqlite3 = require("sqlite3").verbose();
+const { Pool } = require("pg");
 
 const PORT = process.env.PORT || 3000;
-const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, "database.sqlite");
-const db = new sqlite3.Database(DB_PATH);
+const DATABASE_URL = process.env.DATABASE_URL;
 
-function run(query, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(query, params, function onRun(error) {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(this);
-    });
-  });
+if (!DATABASE_URL) {
+  // eslint-disable-next-line no-console
+  console.error("Falta DATABASE_URL no ambiente.");
+  process.exit(1);
 }
 
-function get(query, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(query, params, function onGet(error, row) {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(row);
-    });
-  });
-}
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
+});
 
-function all(query, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(query, params, function onAll(error, rows) {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(rows);
-    });
-  });
+async function query(text, params = []) {
+  const result = await pool.query(text, params);
+  return result;
 }
 
 function normalizePhone(value = "") {
@@ -94,7 +73,7 @@ function publicUser(user) {
 
 async function createSession(userId) {
   const token = crypto.randomBytes(24).toString("hex");
-  await run("INSERT INTO sessions (token, user_id) VALUES (?, ?)", [token, userId]);
+  await query("INSERT INTO sessions (token, user_id) VALUES ($1, $2)", [token, userId]);
   return token;
 }
 
@@ -110,23 +89,23 @@ async function authMiddleware(request, response, next) {
       return;
     }
 
-    const session = await get(
+    const result = await query(
       `
         SELECT s.token, u.id, u.nome, u.idade, u.sexo, u.telefone, u.cpf, u.email
         FROM sessions s
         JOIN users u ON u.id = s.user_id
-        WHERE s.token = ?
+        WHERE s.token = $1
       `,
       [token]
     );
 
-    if (!session) {
+    if (result.rows.length === 0) {
       response.status(401).json({ message: "Sessão inválida." });
       return;
     }
 
     request.token = token;
-    request.user = publicUser(session);
+    request.user = publicUser(result.rows[0]);
     next();
   } catch (error) {
     response.status(500).json({ message: "Erro ao validar sessão." });
@@ -134,10 +113,10 @@ async function authMiddleware(request, response, next) {
 }
 
 async function initializeDatabase() {
-  await run(
+  await query(
     `
       CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id BIGSERIAL PRIMARY KEY,
         nome TEXT NOT NULL,
         idade INTEGER NOT NULL,
         sexo TEXT NOT NULL,
@@ -145,23 +124,22 @@ async function initializeDatabase() {
         cpf TEXT NOT NULL UNIQUE,
         email TEXT UNIQUE,
         senha_hash TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `
   );
 
-  await run(
+  await query(
     `
       CREATE TABLE IF NOT EXISTS sessions (
         token TEXT PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `
   );
 
-  const usersWithEmail = await all(
+  const usersWithEmail = await query(
     `
       SELECT id, email
       FROM users
@@ -169,10 +147,10 @@ async function initializeDatabase() {
     `
   );
 
-  for (const user of usersWithEmail) {
+  for (const user of usersWithEmail.rows) {
     const normalized = normalizeEmail(user.email);
     if (normalized && normalized !== user.email) {
-      await run("UPDATE users SET email = ? WHERE id = ?", [normalized, user.id]);
+      await query("UPDATE users SET email = $1 WHERE id = $2", [normalized, user.id]);
     }
   }
 }
@@ -235,27 +213,20 @@ async function startServer() {
       }
 
       const senhaHash = await bcrypt.hash(senha, 10);
-      const insertResult = await run(
+      const insertResult = await query(
         `
           INSERT INTO users (nome, idade, sexo, telefone, cpf, email, senha_hash)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          RETURNING id, nome, idade, sexo, telefone, cpf, email
         `,
         [nome, idade, sexo, telefone, cpf, email, senhaHash]
       );
 
-      const user = await get(
-        `
-          SELECT id, nome, idade, sexo, telefone, cpf, email
-          FROM users
-          WHERE id = ?
-        `,
-        [insertResult.lastID]
-      );
-
+      const user = insertResult.rows[0];
       const token = await createSession(user.id);
       response.status(201).json({ token, user: publicUser(user) });
     } catch (error) {
-      if (String(error.message).includes("UNIQUE")) {
+      if (error && error.code === "23505") {
         response.status(409).json({ message: "Já existe usuário com este e-mail, telefone ou CPF." });
         return;
       }
@@ -278,21 +249,23 @@ async function startServer() {
       const emailCanonical = isEmail ? normalizeEmail(identificador) : "__NO_EMAIL__";
       const phoneNormalized = isEmail ? "__NO_PHONE__" : normalizePhone(identificador);
 
-      const user = await get(
+      const result = await query(
         `
           SELECT id, nome, idade, sexo, telefone, cpf, email, senha_hash
           FROM users
-          WHERE (email IS NOT NULL AND lower(email) IN (?, ?))
-             OR (telefone IS NOT NULL AND telefone = ?)
+          WHERE (email IS NOT NULL AND lower(email) IN ($1, $2))
+             OR (telefone IS NOT NULL AND telefone = $3)
+          LIMIT 1
         `,
         [emailRaw, emailCanonical, phoneNormalized]
       );
 
-      if (!user) {
+      if (result.rows.length === 0) {
         response.status(401).json({ message: "Login inválido." });
         return;
       }
 
+      const user = result.rows[0];
       const passwordMatch = await bcrypt.compare(senha, user.senha_hash);
       if (!passwordMatch) {
         response.status(401).json({ message: "Login inválido." });
@@ -326,24 +299,26 @@ async function startServer() {
       const emailCanonical = isEmail ? normalizeEmail(identificador) : "__NO_EMAIL__";
       const phoneNormalized = isEmail ? "__NO_PHONE__" : normalizePhone(identificador);
 
-      const user = await get(
+      const result = await query(
         `
           SELECT id
           FROM users
-          WHERE (email IS NOT NULL AND lower(email) IN (?, ?))
-             OR (telefone IS NOT NULL AND telefone = ?)
+          WHERE (email IS NOT NULL AND lower(email) IN ($1, $2))
+             OR (telefone IS NOT NULL AND telefone = $3)
+          LIMIT 1
         `,
         [emailRaw, emailCanonical, phoneNormalized]
       );
 
-      if (!user) {
+      if (result.rows.length === 0) {
         response.status(404).json({ message: "Usuário não encontrado." });
         return;
       }
 
+      const user = result.rows[0];
       const senhaHash = await bcrypt.hash(novaSenha, 10);
-      await run("UPDATE users SET senha_hash = ? WHERE id = ?", [senhaHash, user.id]);
-      await run("DELETE FROM sessions WHERE user_id = ?", [user.id]);
+      await query("UPDATE users SET senha_hash = $1 WHERE id = $2", [senhaHash, user.id]);
+      await query("DELETE FROM sessions WHERE user_id = $1", [user.id]);
 
       response.json({ message: "Senha atualizada com sucesso." });
     } catch (error) {
@@ -357,21 +332,16 @@ async function startServer() {
 
   app.post("/api/auth/logout", authMiddleware, async function logout(request, response) {
     try {
-      await run("DELETE FROM sessions WHERE token = ?", [request.token]);
+      await query("DELETE FROM sessions WHERE token = $1", [request.token]);
       response.json({ message: "Sessão encerrada." });
     } catch (error) {
       response.status(500).json({ message: "Erro ao encerrar sessão." });
     }
   });
 
-  const httpServer = app.listen(PORT, function onListen() {
+  app.listen(PORT, function onListen() {
     // eslint-disable-next-line no-console
     console.log(`Backend iniciado em http://localhost:${PORT}`);
-  });
-
-  httpServer.on("close", function onClose() {
-    // eslint-disable-next-line no-console
-    console.log("Servidor HTTP foi encerrado.");
   });
 }
 
