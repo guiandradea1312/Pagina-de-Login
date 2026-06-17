@@ -13,6 +13,7 @@ const PORT = process.env.PORT || 3000;
 const DATABASE_URL = process.env.DATABASE_URL;
 const LOCAL_DB_MODE = process.env.LOCAL_DB_MODE || "memory";
 const LOCAL_DATA_FILE = path.join(__dirname, "local-data.json");
+const FORM_API_KEY = process.env.FORM_API_KEY || "";
 
 function getPoolConfig() {
   if (DATABASE_URL) {
@@ -262,6 +263,21 @@ function parseClientRow(row) {
     telefone: toNullable(normalizePhone(getRowValue(row, ["telefone", "celular"]))),
     email: normalizeClientEmail(getRowValue(row, ["email", "e-mail"])),
     cidade: toNullable(getRowValue(row, ["cidade", "municipio", "município"]))
+  };
+}
+
+function parseClientPayload(payload) {
+  return {
+    nome: toNullable(
+      payload.nome
+      || payload.Nome
+      || payload["Nome completo"]
+      || payload.nomeCompleto
+    ),
+    cpf: normalizeCpf(payload.cpf || payload.CPF),
+    telefone: toNullable(normalizePhone(payload.telefone || payload.Telefone || payload.celular || payload.Celular)),
+    email: normalizeClientEmail(payload.email || payload.Email || payload["E-mail"]),
+    cidade: toNullable(payload.cidade || payload.Cidade || payload.municipio || payload.Municipio)
   };
 }
 
@@ -554,6 +570,64 @@ async function startServer() {
       response.status(201).json({ message: "Cliente salvo com sucesso.", client: publicClient(result.rows[0]) });
     } catch (error) {
       response.status(500).json({ message: "Erro ao cadastrar cliente." });
+    }
+  });
+
+  app.post("/api/public/clientes", async function createClientPublic(request, response) {
+    try {
+      if (!FORM_API_KEY) {
+        response.status(503).json({ message: "Integração pública indisponível." });
+        return;
+      }
+
+      const informedKey = toNullable(
+        request.headers["x-form-api-key"]
+        || request.query.key
+        || request.body.apiKey
+      );
+
+      if (!informedKey || informedKey !== FORM_API_KEY) {
+        response.status(401).json({ message: "Chave de integração inválida." });
+        return;
+      }
+
+      const cliente = parseClientPayload(request.body || {});
+
+      if (!cliente.nome || !cliente.cpf || !cliente.cidade) {
+        response.status(400).json({ message: "Informe nome, CPF e cidade." });
+        return;
+      }
+
+      if (cliente.cpf.length !== 11) {
+        response.status(400).json({ message: "CPF inválido." });
+        return;
+      }
+
+      if (cliente.telefone && (cliente.telefone.length < 10 || cliente.telefone.length > 11)) {
+        response.status(400).json({ message: "Telefone inválido." });
+        return;
+      }
+
+      const result = await query(
+        `
+          INSERT INTO clients (nome, cpf, telefone, email, cidade)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (cpf)
+          DO UPDATE SET
+            nome = EXCLUDED.nome,
+            telefone = EXCLUDED.telefone,
+            email = EXCLUDED.email,
+            cidade = EXCLUDED.cidade,
+            updated_at = NOW()
+          RETURNING id, nome, cpf, telefone, email, cidade, created_at
+        `,
+        [cliente.nome, cliente.cpf, cliente.telefone, cliente.email, cliente.cidade]
+      );
+
+      await persistLocalData();
+      response.status(201).json({ message: "Cliente recebido com sucesso.", client: publicClient(result.rows[0]) });
+    } catch (error) {
+      response.status(500).json({ message: "Erro ao cadastrar cliente pela integração." });
     }
   });
 
