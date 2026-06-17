@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <!-- Configurações básicas da página -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <!-- CSS exclusivo da tela de login -->
+  <link rel="stylesheet" href="login.css">
+</head>
+<body class="pagina-login">
+  <!-- Estrutura principal: lado esquerdo informativo e lado direito com formulário -->
+  <main class="layout-login">
+    <!-- Painel visual da esquerda -->
+    <section class="painel-marca">
+      <div class="conteudo-marca">
+        <div class="cabecalho-marca">
+          <span class="icone">🔒</span>
+          <div>
+            <h1>DESTRAVA</h1>
+            <p>educação comportamental</p>
+          </div>
+        </div>
+        <h2>Seu ambiente de acesso para gerenciar seus dados de cadastro.</h2>
+        <p class="descricao">Faça login com seu Gmail ou telefone para acessar seu perfil.</p>
+      </div>
+    </section>
+
+    <!-- Painel de login -->
+    <section class="painel-formulario">
+      <article class="cartao-login">
+        <h3>Entrar</h3>
+        <p>Use seu Gmail/telefone e sua senha.</p>
+
+        <!-- Formulário que envia os dados para validação no login.js -->
+        <form id="formularioLogin">
+          <label for="identificador">Gmail ou telefone</label>
+          <input type="text" id="identificador" required>
+
+          <label for="senhaLogin">Senha</label>
+          <input type="password" id="senhaLogin" required>
+
+          <button type="submit" class="botao-principal">Entrar</button>
+        </form>
+
+        <!-- Área para mensagens de erro/sucesso -->
+        <p id="mensagemLogin" class="mensagem"></p>
+
+        <!-- Links para os fluxos secundários -->
+        <nav class="links-acao">
+          <a href="../registro/registro.html">Não tenho cadastro</a>
+          <a href="../esqueci-senha/esqueci-senha.html">Esqueci minha senha</a>
+        </nav>
+      </article>
+    </section>
+  </main>
+
+  <!-- JavaScript responsável pelo fluxo de autenticação -->
+  <script src="login.js"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <!-- Configuração base da página -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Esqueci senha</title>
+  <!-- CSS exclusivo da tela de recuperação -->
+  <link rel="stylesheet" href="esqueci-senha.css">
+</head>
+<body>
+  <!-- Área central do formulário de recuperação -->
+  <main class="pagina">
+    <section class="cartao">
+      <h1>Recuperar senha</h1>
+
+      <!-- Formulário para alterar senha de um usuário existente -->
+      <form id="formularioRecuperacao">
+        <label for="identificadorRecuperacao">Gmail ou telefone cadastrado</label>
+        <input type="text" id="identificadorRecuperacao" required>
+
+        <label for="novaSenha">Nova senha</label>
+        <input type="password" id="novaSenha" minlength="6" required>
+
+        <label for="confirmarSenha">Confirmar nova senha</label>
+        <input type="password" id="confirmarSenha" minlength="6" required>
+
+        <button type="submit">Atualizar senha</button>
+      </form>
+
+      <!-- Mensagem dinâmica de erro/sucesso -->
+      <p id="mensagemRecuperacao" class="mensagem"></p>
+      <!-- Volta para o fluxo de login -->
+      <a class="voltar" href="../login/login.html">Voltar para login</a>
+    </section>
+  </main>
+
+  <!-- Script com a lógica de recuperação -->
+  <script src="esqueci-senha.js"></script>
+</body>
+</html>

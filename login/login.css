@@ -1,0 +1,169 @@
+/* Garante que padding e borda não aumentem largura final dos elementos */
+* { box-sizing: border-box; }
+
+/* Estilo base da página */
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Cor de fundo geral da tela de login */
+.pagina-login { background: #dfe3e8; }
+
+/* Divide tela em dois painéis (marca e formulário) */
+.layout-login {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Painel laranja com conteúdo institucional */
+.painel-marca {
+  background: #ff6a00;
+  color: #fff;
+  display: grid;
+  align-items: center;
+  padding: 48px;
+}
+
+/* Container central do conteúdo da marca */
+.conteudo-marca {
+  max-width: 520px;
+  margin: 0 auto;
+  display: grid;
+  gap: 22px;
+}
+
+/* Linha do topo com ícone e nome da marca */
+.cabecalho-marca {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Tamanho do ícone da marca */
+.icone { font-size: 42px; }
+
+/* Título principal da marca */
+.cabecalho-marca h1 {
+  margin: 0;
+  font-size: 44px;
+}
+
+/* Subtítulo da marca */
+.cabecalho-marca p {
+  margin: 0;
+  font-size: 18px;
+}
+
+/* Frase principal de destaque */
+.conteudo-marca h2 {
+  margin: 0;
+  font-size: clamp(28px, 3.5vw, 50px);
+}
+
+/* Texto descritivo abaixo do destaque */
+.descricao {
+  margin: 0;
+  font-size: clamp(20px, 2.4vw, 30px);
+  line-height: 1.4;
+}
+
+/* Área onde fica o card de login */
+.painel-formulario {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+/* Card branco do formulário */
+.cartao-login {
+  width: min(100%, 460px);
+  border-radius: 24px;
+  border: 1px solid #d7dfe8;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  padding: 28px;
+}
+
+/* Título "Entrar" */
+.cartao-login h3 {
+  margin: 0;
+  font-size: 36px;
+  color: #0f2a66;
+}
+
+/* Texto de apoio do card */
+.cartao-login > p {
+  margin: 8px 0 0;
+  color: #5e6d85;
+}
+
+/* Organização vertical dos campos do formulário */
+form {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+/* Aparência dos labels */
+label {
+  font-weight: 700;
+  color: #314660;
+}
+
+/* Estilo base de inputs e botões */
+input, button {
+  width: 100%;
+  border-radius: 999px;
+  font-size: 16px;
+  padding: 12px 16px;
+}
+
+/* Borda dos campos de texto */
+input { border: 1px solid #cfd8e3; }
+
+/* Botão principal de login */
+.botao-principal {
+  border: none;
+  background: #ff6a00;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Efeito hover para feedback visual */
+.botao-principal:hover { background: #ea580c; }
+
+/* Área reservada para mensagens de validação */
+.mensagem {
+  min-height: 20px;
+  margin: 12px 0 0;
+}
+
+/* Mensagem de erro em vermelho */
+.mensagem.erro { color: #b91c1c; }
+
+/* Linha de links para cadastro e recuperação */
+.links-acao {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Aparência padrão dos links */
+.links-acao a {
+  text-decoration: none;
+  color: #4f6480;
+  font-weight: 600;
+}
+
+/* Cor de destaque ao passar o mouse */
+.links-acao a:hover { color: #ea580c; }
+
+/* Ajustes responsivos para telas menores */
+@media (max-width: 900px) {
+  .layout-login { grid-template-columns: 1fr; }
+  .painel-marca { padding: 28px; }
+}

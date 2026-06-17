@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <!-- Configurações básicas da página -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perfil</title>
+  <!-- CSS exclusivo da página de perfil -->
+  <link rel="stylesheet" href="perfil.css">
+</head>
+<body class="pagina-perfil">
+  <!-- Cabeçalho com identificação rápida do usuário -->
+  <header class="cabecalho-perfil">
+    <div class="conteudo-cabecalho">
+      <div class="avatar" id="iniciaisUsuario">--</div>
+      <div>
+        <h1>Seja bem-vindo(a), <span id="nomeTitulo">usuário</span>!</h1>
+        <div class="tags">
+          <span class="tag" id="tagEmail">Gmail</span>
+          <span class="tag tag-secundaria" id="tagTelefone">Telefone</span>
+        </div>
+      </div>
+      <!-- Botão para encerrar sessão -->
+      <button id="botaoSair" type="button">Sair</button>
+    </div>
+  </header>
+
+  <!-- Conteúdo principal com os dados cadastrados -->
+  <main class="conteudo-perfil">
+    <section class="alerta">
+      <strong>Atenção</strong>
+      <p>Esses são os dados informados no seu cadastro.</p>
+    </section>
+
+    <section>
+      <h2>MEUS DADOS</h2>
+      <!-- Cards com cada informação do usuário -->
+      <div class="grade-dados">
+        <div class="item"><strong>Nome</strong><span id="nome"></span></div>
+        <div class="item"><strong>Idade</strong><span id="idade"></span></div>
+        <div class="item"><strong>Sexo</strong><span id="sexo"></span></div>
+        <div class="item"><strong>Telefone</strong><span id="telefone"></span></div>
+        <div class="item"><strong>CPF</strong><span id="cpf"></span></div>
+        <div class="item item-email"><strong>Gmail</strong><span id="email"></span></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Script responsável por carregar dados e controlar sessão -->
+  <script src="perfil.js"></script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+/* Mantém o cálculo de largura/padding mais previsível */
+* { box-sizing: border-box; }
+
+/* Estilo geral da página */
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #fff7ed;
+}
+
+/* Centraliza o card no meio da tela */
+.pagina {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+/* Card principal do formulário de cadastro */
+.cartao {
+  width: min(100%, 560px);
+  background: #fff;
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(194, 65, 12, 0.15);
+  padding: 26px;
+}
+
+/* Título principal da página */
+h1 {
+  margin: 0;
+  color: #9a3412;
+}
+
+/* Organização vertical dos campos */
+form {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+/* Estilo dos rótulos */
+label {
+  font-weight: 700;
+  color: #7c2d12;
+}
+
+/* Estilo base de campos e botão */
+input, select, button {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #fdba74;
+  padding: 10px 12px;
+  font-size: 15px;
+}
+
+/* Botão de ação principal */
+button {
+  border: none;
+  background: #f97316;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* Cor no hover do botão */
+button:hover { background: #ea580c; }
+
+/* Área destinada a mensagens de erro/sucesso */
+.mensagem {
+  min-height: 20px;
+  margin-top: 10px;
+}
+
+/* Mensagem de erro */
+.mensagem.erro { color: #b91c1c; }
+/* Mensagem de sucesso */
+.mensagem.sucesso { color: #9a3412; }
+
+/* Link para voltar ao login */
+.voltar {
+  color: #9a3412;
+  text-decoration: none;
+  font-weight: 700;
+}

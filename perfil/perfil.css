@@ -1,0 +1,166 @@
+/* Ajusta o box model para medidas mais consistentes */
+* { box-sizing: border-box; }
+
+/* Estilo base da página */
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Tema geral do perfil */
+.pagina-perfil {
+  background: #fff7ed;
+  color: #7c2d12;
+}
+
+/* Cabeçalho superior com gradiente laranja */
+.cabecalho-perfil {
+  background: linear-gradient(120deg, #f97316, #ea580c);
+  color: #fff;
+  padding: 24px;
+}
+
+/* Limita largura e organiza itens do cabeçalho */
+.conteudo-cabecalho {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Avatar circular com iniciais do usuário */
+.avatar {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 3px solid #fdba74;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+/* Título com saudação */
+h1 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 44px);
+}
+
+/* Linha de etiquetas (gmail/telefone cadastrado) */
+.tags {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Estilo visual padrão das tags */
+.tag {
+  background: #9a3412;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Variação da segunda tag */
+.tag-secundaria { background: #c2410c; }
+
+/* Botão para sair da conta */
+#botaoSair {
+  margin-left: auto;
+  border: none;
+  border-radius: 10px;
+  background: #f97316;
+  color: #fff;
+  padding: 10px 16px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Conteúdo abaixo do cabeçalho */
+.conteudo-perfil {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* Bloco de aviso informativo */
+.alerta {
+  background: #ffedd5;
+  border: 1px solid #fdba74;
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 22px;
+}
+
+/* Tamanho do título do aviso */
+.alerta strong { font-size: 28px; }
+
+/* Texto de apoio do aviso */
+.alerta p {
+  margin: 8px 0 0;
+  font-size: 20px;
+}
+
+/* Título da seção "Meus dados" */
+h2 {
+  margin: 0 0 10px;
+  color: #c2410c;
+  letter-spacing: 1px;
+}
+
+/* Grade dos cards de dados */
+.grade-dados {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, max-content));
+  gap: 14px;
+}
+
+/* Card individual de informação */
+.item {
+  width: fit-content;
+  min-width: 230px;
+  max-width: 100%;
+  min-height: 110px;
+  background: #fff;
+  border: 1px solid #dbe2ef;
+  border-radius: 12px;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.05);
+  padding: 16px;
+}
+
+/* Rótulo dentro do card (Nome, Idade, etc.) */
+.item strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+/* Valor do dado mostrado no card */
+.item span {
+  font-size: 34px;
+  font-weight: 700;
+  color: #9a3412;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Ajuste específico para card de e-mail */
+.item-email { max-width: none; }
+
+/* Mantém e-mail em linha única para evitar quebra */
+#email {
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+/* Ajustes para telas pequenas */
+@media (max-width: 900px) {
+  .conteudo-cabecalho { flex-wrap: wrap; }
+  #botaoSair { margin-left: 0; }
+}
