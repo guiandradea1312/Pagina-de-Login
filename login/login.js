@@ -18,6 +18,17 @@ function normalizarTelefone(valor) {
   return digitos;
 }
 
+function normalizarGmail(valor) {
+  const email = valor.trim().toLowerCase();
+  if (!email.endsWith("@gmail.com")) {
+    return email;
+  }
+
+  const local = email.split("@")[0];
+  const canonical = local.split("+")[0].replace(/\./g, "");
+  return `${canonical}@gmail.com`;
+}
+
 // Mostra mensagens de retorno na tela (erro ou sucesso).
 function mostrarMensagem(texto, tipo) {
   mensagemLogin.textContent = texto;
@@ -32,14 +43,14 @@ formularioLogin.addEventListener("submit", async function (evento) {
   const senha = campoSenhaLogin.value;
 
   if (!identificador) {
-    mostrarMensagem("Informe Gmail ou telefone.", "erro");
+    mostrarMensagem("Informe Gmail, telefone ou CPF.", "erro");
     return;
   }
 
   // Se tiver "@", trata como e-mail; se não, trata como telefone.
   const eEmail = identificador.includes("@");
   const identificadorNormalizado = eEmail
-    ? identificador.toLowerCase()
+    ? normalizarGmail(identificador)
     : normalizarTelefone(identificador);
 
   try {

@@ -3,25 +3,165 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const path = require("path");
-const { Pool } = require("pg");
+const fs = require("fs/promises");
+const multer = require("multer");
+const { Pool: PgPool } = require("pg");
+const { newDb } = require("pg-mem");
+const xlsx = require("xlsx");
 
 const PORT = process.env.PORT || 3000;
 const DATABASE_URL = process.env.DATABASE_URL;
+const LOCAL_DB_MODE = process.env.LOCAL_DB_MODE || "memory";
+const LOCAL_DATA_FILE = path.join(__dirname, "local-data.json");
 
-if (!DATABASE_URL) {
-  // eslint-disable-next-line no-console
-  console.error("Falta DATABASE_URL no ambiente.");
-  process.exit(1);
+function getPoolConfig() {
+  if (DATABASE_URL) {
+    return {
+      connectionString: DATABASE_URL,
+      ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
+    };
+  }
+
+  return {
+    host: process.env.PGHOST || "localhost",
+    port: Number(process.env.PGPORT || 5432),
+    user: process.env.PGUSER || "postgres",
+    password: process.env.PGPASSWORD,
+    database: process.env.PGDATABASE || "postgres",
+    ssl: false
+  };
 }
 
-const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
+function createPool() {
+  if (DATABASE_URL) {
+    return {
+      pool: new PgPool(getPoolConfig()),
+      mode: "remote-postgres",
+      ready: Promise.resolve()
+    };
+  }
+
+  if (LOCAL_DB_MODE === "postgres") {
+    return {
+      pool: new PgPool(getPoolConfig()),
+      mode: "local-postgres",
+      ready: Promise.resolve()
+    };
+  }
+
+  const memoryDb = newDb({ autoCreateForeignKeyIndices: true });
+  const { Client: MemoryClient } = memoryDb.adapters.createPg();
+  const memoryClient = new MemoryClient();
+  return {
+    pool: memoryClient,
+    mode: "memory",
+    ready: memoryClient.connect()
+  };
+}
+
+const { pool, mode: dbMode, ready: dbReady } = createPool();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }
 });
 
 async function query(text, params = []) {
   const result = await pool.query(text, params);
   return result;
+}
+
+function isMemoryMode() {
+  return dbMode === "memory";
+}
+
+async function persistLocalData() {
+  if (!isMemoryMode()) {
+    return;
+  }
+
+  const usersResult = await query(
+    `
+      SELECT id, nome, idade, sexo, telefone, cpf, email, senha_hash, created_at
+      FROM users
+      ORDER BY id
+    `
+  );
+
+  const clientsResult = await query(
+    `
+      SELECT id, nome, cpf, telefone, email, cidade, created_at, updated_at
+      FROM clients
+      ORDER BY id
+    `
+  );
+
+  const payload = {
+    users: usersResult.rows,
+    clients: clientsResult.rows
+  };
+
+  await fs.writeFile(LOCAL_DATA_FILE, JSON.stringify(payload, null, 2), "utf8");
+}
+
+async function loadLocalData() {
+  if (!isMemoryMode()) {
+    return;
+  }
+
+  let parsed;
+
+  try {
+    const content = await fs.readFile(LOCAL_DATA_FILE, "utf8");
+    parsed = JSON.parse(content);
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return;
+    }
+    throw error;
+  }
+
+  const users = Array.isArray(parsed.users) ? parsed.users : [];
+  const clients = Array.isArray(parsed.clients) ? parsed.clients : [];
+
+  for (const user of users) {
+    await query(
+      `
+        INSERT INTO users (nome, idade, sexo, telefone, cpf, email, senha_hash, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (cpf) DO NOTHING
+      `,
+      [
+        user.nome,
+        user.idade,
+        user.sexo,
+        user.telefone,
+        user.cpf,
+        user.email,
+        user.senha_hash,
+        user.created_at
+      ]
+    );
+  }
+
+  for (const client of clients) {
+    await query(
+      `
+        INSERT INTO clients (nome, cpf, telefone, email, cidade, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (cpf) DO NOTHING
+      `,
+      [
+        client.nome,
+        client.cpf,
+        client.telefone,
+        client.email,
+        client.cidade,
+        client.created_at,
+        client.updated_at
+      ]
+    );
+  }
 }
 
 function normalizePhone(value = "") {
@@ -68,6 +208,60 @@ function publicUser(user) {
     telefone: user.telefone,
     cpf: user.cpf,
     email: user.email
+  };
+}
+
+function publicClient(client) {
+  return {
+    id: client.id,
+    nome: client.nome,
+    cpf: client.cpf,
+    telefone: client.telefone,
+    email: client.email,
+    cidade: client.cidade,
+    created_at: client.created_at
+  };
+}
+
+function normalizeSearchText(value = "") {
+  return String(value).trim();
+}
+
+function normalizeColumnName(value = "") {
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function getRowValue(row, aliases = []) {
+  const entries = Object.entries(row || {});
+
+  for (const alias of aliases) {
+    const normalizedAlias = normalizeColumnName(alias);
+
+    for (const [key, value] of entries) {
+      if (normalizeColumnName(key) === normalizedAlias) {
+        return value;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeClientEmail(value = "") {
+  return toNullable(String(value).trim().toLowerCase());
+}
+
+function parseClientRow(row) {
+  return {
+    nome: toNullable(getRowValue(row, ["nome", "nome completo"])),
+    cpf: normalizeCpf(getRowValue(row, ["cpf"])),
+    telefone: toNullable(normalizePhone(getRowValue(row, ["telefone", "celular"]))),
+    email: normalizeClientEmail(getRowValue(row, ["email", "e-mail"])),
+    cidade: toNullable(getRowValue(row, ["cidade", "municipio", "município"]))
   };
 }
 
@@ -139,6 +333,26 @@ async function initializeDatabase() {
     `
   );
 
+  await query(
+    `
+      CREATE TABLE IF NOT EXISTS clients (
+        id BIGSERIAL PRIMARY KEY,
+        nome TEXT NOT NULL,
+        cpf TEXT NOT NULL UNIQUE,
+        telefone TEXT,
+        email TEXT,
+        cidade TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+  );
+
+  await query("CREATE INDEX IF NOT EXISTS clients_nome_idx ON clients (lower(nome))");
+  await query("CREATE INDEX IF NOT EXISTS clients_cidade_idx ON clients (lower(cidade))");
+
+  await loadLocalData();
+
   const usersWithEmail = await query(
     `
       SELECT id, email
@@ -156,6 +370,7 @@ async function initializeDatabase() {
 }
 
 async function startServer() {
+  await dbReady;
   await initializeDatabase();
 
   const app = express();
@@ -212,6 +427,25 @@ async function startServer() {
         return;
       }
 
+      if (email) {
+        const emailCandidates = await query(
+          `
+            SELECT id, email
+            FROM users
+            WHERE email IS NOT NULL
+          `
+        );
+
+        const duplicatedCanonical = emailCandidates.rows.some(function (row) {
+          return normalizeEmail(row.email) === email;
+        });
+
+        if (duplicatedCanonical) {
+          response.status(409).json({ message: "Já existe usuário com este e-mail, telefone ou CPF." });
+          return;
+        }
+      }
+
       const senhaHash = await bcrypt.hash(senha, 10);
       const insertResult = await query(
         `
@@ -223,6 +457,7 @@ async function startServer() {
       );
 
       const user = insertResult.rows[0];
+      await persistLocalData();
       const token = await createSession(user.id);
       response.status(201).json({ token, user: publicUser(user) });
     } catch (error) {
@@ -231,6 +466,153 @@ async function startServer() {
         return;
       }
       response.status(500).json({ message: "Erro ao cadastrar usuário." });
+    }
+  });
+
+  app.get("/api/clientes", authMiddleware, async function listClients(request, response) {
+    try {
+      const nome = normalizeSearchText(request.query.nome);
+      const cidade = normalizeSearchText(request.query.cidade);
+      const conditions = [];
+      const values = [];
+
+      if (nome) {
+        values.push(`%${nome}%`);
+        conditions.push(`nome ILIKE $${values.length}`);
+      }
+
+      if (cidade) {
+        values.push(`%${cidade}%`);
+        conditions.push(`cidade ILIKE $${values.length}`);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+      const result = await query(
+        `
+          SELECT id, nome, cpf, telefone, email, cidade, created_at
+          FROM clients
+          ${whereClause}
+          ORDER BY nome ASC, created_at DESC
+        `,
+        values
+      );
+
+      response.json({ clientes: result.rows.map(publicClient) });
+    } catch (error) {
+      response.status(500).json({ message: "Erro ao listar clientes." });
+    }
+  });
+
+  app.post("/api/clientes", authMiddleware, async function createClient(request, response) {
+    try {
+      const nome = toNullable(request.body.nome);
+      const cpf = normalizeCpf(request.body.cpf);
+      const telefone = toNullable(normalizePhone(request.body.telefone));
+      const email = normalizeClientEmail(request.body.email);
+      const cidade = toNullable(request.body.cidade);
+
+      if (!nome || !cpf || !cidade) {
+        response.status(400).json({ message: "Informe nome, CPF e cidade." });
+        return;
+      }
+
+      if (cpf.length !== 11) {
+        response.status(400).json({ message: "CPF inválido." });
+        return;
+      }
+
+      if (telefone && (telefone.length < 10 || telefone.length > 11)) {
+        response.status(400).json({ message: "Telefone inválido." });
+        return;
+      }
+
+      const result = await query(
+        `
+          INSERT INTO clients (nome, cpf, telefone, email, cidade)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (cpf)
+          DO UPDATE SET
+            nome = EXCLUDED.nome,
+            telefone = EXCLUDED.telefone,
+            email = EXCLUDED.email,
+            cidade = EXCLUDED.cidade,
+            updated_at = NOW()
+          RETURNING id, nome, cpf, telefone, email, cidade, created_at
+        `,
+        [nome, cpf, telefone, email, cidade]
+      );
+
+      await persistLocalData();
+      response.status(201).json({ message: "Cliente salvo com sucesso.", client: publicClient(result.rows[0]) });
+    } catch (error) {
+      response.status(500).json({ message: "Erro ao cadastrar cliente." });
+    }
+  });
+
+  app.post("/api/clientes/importar", authMiddleware, upload.single("arquivo"), async function importClients(request, response) {
+    try {
+      if (!request.file) {
+        response.status(400).json({ message: "Envie um arquivo Excel." });
+        return;
+      }
+
+      const workbook = xlsx.read(request.file.buffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+
+      if (!sheetName) {
+        response.status(400).json({ message: "O arquivo não possui planilhas." });
+        return;
+      }
+
+      const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+      const erros = [];
+      let processados = 0;
+
+      for (let indice = 0; indice < rows.length; indice += 1) {
+        const linha = indice + 2;
+        const cliente = parseClientRow(rows[indice]);
+
+        if (!cliente.nome || !cliente.cpf || !cliente.cidade) {
+          erros.push({ linha, message: "Informe nome, CPF e cidade." });
+          continue;
+        }
+
+        if (cliente.cpf.length !== 11) {
+          erros.push({ linha, message: "CPF inválido." });
+          continue;
+        }
+
+        if (cliente.telefone && (cliente.telefone.length < 10 || cliente.telefone.length > 11)) {
+          erros.push({ linha, message: "Telefone inválido." });
+          continue;
+        }
+
+        await query(
+          `
+            INSERT INTO clients (nome, cpf, telefone, email, cidade)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (cpf)
+            DO UPDATE SET
+              nome = EXCLUDED.nome,
+              telefone = EXCLUDED.telefone,
+              email = EXCLUDED.email,
+              cidade = EXCLUDED.cidade,
+              updated_at = NOW()
+          `,
+          [cliente.nome, cliente.cpf, cliente.telefone, cliente.email, cliente.cidade]
+        );
+        processados += 1;
+      }
+
+      await persistLocalData();
+
+      response.json({
+        message: "Importação concluída.",
+        processados,
+        erros
+      });
+    } catch (error) {
+      response.status(500).json({ message: "Erro ao importar clientes." });
     }
   });
 
@@ -245,35 +627,67 @@ async function startServer() {
       }
 
       const isEmail = identificador.includes("@");
-      const emailRaw = isEmail ? identificador.toLowerCase() : "__NO_EMAIL__";
-      const emailCanonical = isEmail ? normalizeEmail(identificador) : "__NO_EMAIL__";
-      const phoneNormalized = isEmail ? "__NO_PHONE__" : normalizePhone(identificador);
+      let candidates = [];
 
-      const result = await query(
-        `
-          SELECT id, nome, idade, sexo, telefone, cpf, email, senha_hash
-          FROM users
-          WHERE (email IS NOT NULL AND lower(email) IN ($1, $2))
-             OR (telefone IS NOT NULL AND telefone = $3)
-          LIMIT 1
-        `,
-        [emailRaw, emailCanonical, phoneNormalized]
-      );
+      if (isEmail) {
+        const emailRaw = identificador.toLowerCase().trim();
+        const emailCanonical = normalizeEmail(identificador);
+        const result = await query(
+          `
+            SELECT id, nome, idade, sexo, telefone, cpf, email, senha_hash
+            FROM users
+            WHERE email IS NOT NULL
+          `
+        );
 
-      if (result.rows.length === 0) {
+        candidates = result.rows.filter(function (user) {
+          const storedRaw = String(user.email || "").trim().toLowerCase();
+          const storedCanonical = normalizeEmail(user.email || "");
+          return storedRaw === emailRaw
+            || storedRaw === emailCanonical
+            || storedCanonical === emailRaw
+            || storedCanonical === emailCanonical;
+        });
+      } else {
+        const identifierDigits = normalizePhone(identificador);
+        const cpfDigits = normalizeCpf(identificador);
+        const result = await query(
+          `
+            SELECT id, nome, idade, sexo, telefone, cpf, email, senha_hash
+            FROM users
+            WHERE telefone IS NOT NULL OR cpf IS NOT NULL
+          `
+        );
+
+        candidates = result.rows.filter(function (user) {
+          return normalizePhone(user.telefone || "") === identifierDigits
+            || normalizeCpf(user.cpf || "") === cpfDigits;
+        });
+      }
+
+      if (candidates.length === 0) {
         response.status(401).json({ message: "Login inválido." });
         return;
       }
 
-      const user = result.rows[0];
-      const passwordMatch = await bcrypt.compare(senha, user.senha_hash);
-      if (!passwordMatch) {
+      let authenticatedUser = null;
+      for (const candidate of candidates) {
+        // Garante o usuário correto quando há mais de um possível match canônico.
+        // eslint-disable-next-line no-await-in-loop
+        const passwordMatch = await bcrypt.compare(senha, candidate.senha_hash);
+        if (passwordMatch) {
+          authenticatedUser = candidate;
+          break;
+        }
+      }
+
+      if (!authenticatedUser) {
         response.status(401).json({ message: "Login inválido." });
         return;
       }
 
-      const token = await createSession(user.id);
-      response.json({ token, user: publicUser(user) });
+      const token = await createSession(authenticatedUser.id);
+      response.json({ token, user: publicUser(authenticatedUser) });
     } catch (error) {
       response.status(500).json({ message: "Erro ao efetuar login." });
     }
@@ -320,6 +734,8 @@ async function startServer() {
       await query("UPDATE users SET senha_hash = $1 WHERE id = $2", [senhaHash, user.id]);
       await query("DELETE FROM sessions WHERE user_id = $1", [user.id]);
 
+      await persistLocalData();
+
       response.json({ message: "Senha atualizada com sucesso." });
     } catch (error) {
       response.status(500).json({ message: "Erro ao atualizar senha." });
@@ -341,7 +757,7 @@ async function startServer() {
 
   app.listen(PORT, function onListen() {
     // eslint-disable-next-line no-console
-    console.log(`Backend iniciado em http://localhost:${PORT}`);
+    console.log(`Backend iniciado em http://localhost:${PORT} (db: ${dbMode})`);
   });
 }
 

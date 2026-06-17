@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clientes</title>
+  <link rel="stylesheet" href="clientes.css">
+</head>
+<body class="pagina-clientes">
+  <header class="cabecalho">
+    <div>
+      <p class="eyebrow">CRM simples</p>
+      <h1>Cadastro de clientes</h1>
+      <p class="subtitulo">Cadastre, filtre por nome e cidade, e importe planilhas em lote.</p>
+    </div>
+
+    <div class="acoes-cabecalho">
+      <a class="botao-outline" href="../perfil/perfil.html">Voltar ao perfil</a>
+      <button id="botaoSair" type="button">Sair</button>
+    </div>
+  </header>
+
+  <main class="conteudo">
+    <section class="grade-resumo">
+      <article class="cartao resumo">
+        <span class="resumo-label">Clientes carregados</span>
+        <strong id="totalClientes">0</strong>
+      </article>
+      <article class="cartao resumo">
+        <span class="resumo-label">Importação</span>
+        <strong id="statusImportacao">Pronto</strong>
+      </article>
+      <article class="cartao resumo">
+        <span class="resumo-label">Filtro ativo</span>
+        <strong id="filtroAtivo">Nenhum</strong>
+      </article>
+    </section>
+
+    <section class="grade-principal">
+      <div class="coluna">
+        <section class="cartao">
+          <div class="cabecalho-cartao">
+            <div>
+              <p class="eyebrow">Novo cliente</p>
+              <h2>Cadastrar cliente</h2>
+            </div>
+          </div>
+
+          <form id="formCliente" class="formulario">
+            <label for="nome">Nome</label>
+            <input id="nome" type="text" placeholder="Nome completo" required>
+
+            <label for="cpf">CPF</label>
+            <input id="cpf" type="text" placeholder="000.000.000-00" maxlength="14" required>
+
+            <label for="telefone">Telefone</label>
+            <input id="telefone" type="tel" placeholder="(00) 00000-0000">
+
+            <label for="email">E-mail</label>
+            <input id="email" type="email" placeholder="cliente@exemplo.com">
+
+            <label for="cidade">Cidade</label>
+            <input id="cidade" type="text" placeholder="Cidade" required>
+
+            <button type="submit">Salvar cliente</button>
+          </form>
+          <p id="mensagemCliente" class="mensagem"></p>
+        </section>
+
+        <section class="cartao">
+          <div class="cabecalho-cartao">
+            <div>
+              <p class="eyebrow">Importação em lote</p>
+              <h2>Upload de Excel</h2>
+            </div>
+          </div>
+
+          <form id="formImportacao" class="formulario">
+            <label for="arquivoExcel">Arquivo Excel</label>
+            <input id="arquivoExcel" type="file" accept=".xlsx,.xls" required>
+            <button type="submit">Importar clientes</button>
+          </form>
+          <p class="ajuda">Use colunas com os nomes: nome, cpf, telefone, email e cidade.</p>
+          <p id="mensagemImportacao" class="mensagem"></p>
+        </section>
+      </div>
+
+      <div class="coluna maior">
+        <section class="cartao">
+          <div class="cabecalho-cartao">
+            <div>
+              <p class="eyebrow">Consulta</p>
+              <h2>Filtrar clientes</h2>
+            </div>
+          </div>
+
+          <form id="formFiltro" class="filtro-grid">
+            <div>
+              <label for="filtroNome">Nome</label>
+              <input id="filtroNome" type="text" placeholder="Buscar por nome">
+            </div>
+            <div>
+              <label for="filtroCidade">Cidade</label>
+              <input id="filtroCidade" type="text" placeholder="Buscar por cidade">
+            </div>
+            <div class="botoes-filtro">
+              <button type="submit">Filtrar</button>
+              <button id="botaoLimpar" type="button" class="botao-secundario">Limpar</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="cartao">
+          <div class="cabecalho-cartao">
+            <div>
+              <p class="eyebrow">Resultado</p>
+              <h2>Lista de clientes</h2>
+            </div>
+          </div>
+
+          <div class="tabela-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>CPF</th>
+                  <th>Telefone</th>
+                  <th>E-mail</th>
+                  <th>Cidade</th>
+                </tr>
+              </thead>
+              <tbody id="listaClientes"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script src="clientes.js"></script>
+</body>
+</html>
