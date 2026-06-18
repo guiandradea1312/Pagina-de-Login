@@ -6,12 +6,16 @@ const formularioImportacao = document.getElementById("formImportacao");
 const formularioFiltro = document.getElementById("formFiltro");
 const botaoLimpar = document.getElementById("botaoLimpar");
 const botaoSair = document.getElementById("botaoSair");
+const botaoCancelarEdicao = document.getElementById("botaoCancelarEdicao");
+const botaoSalvarCliente = document.getElementById("botaoSalvarCliente");
+const tituloFormularioCliente = document.getElementById("tituloFormularioCliente");
 const mensagemCliente = document.getElementById("mensagemCliente");
 const mensagemImportacao = document.getElementById("mensagemImportacao");
 const listaClientes = document.getElementById("listaClientes");
 const totalClientes = document.getElementById("totalClientes");
 const statusImportacao = document.getElementById("statusImportacao");
 const filtroAtivo = document.getElementById("filtroAtivo");
+let clienteEmEdicaoId = null;
 
 function somenteNumeros(valor) {
   let digitos = String(valor || "").replace(/\D/g, "");
@@ -37,6 +41,11 @@ function formatarTelefone(valor) {
 function mostrarMensagem(elemento, texto, tipo) {
   elemento.textContent = texto;
   elemento.className = `mensagem ${tipo}`;
+}
+
+function limparMensagem(elemento) {
+  elemento.textContent = "";
+  elemento.className = "mensagem";
 }
 
 function obterToken() {
@@ -66,13 +75,37 @@ function aplicarFiltroAtivo() {
   return { nome: "", cidade: "" };
 }
 
+function preencherFormularioCliente(cliente) {
+  document.getElementById("nome").value = cliente.nome || "";
+  document.getElementById("cpf").value = formatarCpf(cliente.cpf || "");
+  document.getElementById("telefone").value = formatarTelefone(cliente.telefone || "");
+  document.getElementById("email").value = cliente.email || "";
+  document.getElementById("cidade").value = cliente.cidade || "";
+}
+
+function ativarModoEdicao(cliente) {
+  clienteEmEdicaoId = cliente.id;
+  preencherFormularioCliente(cliente);
+  tituloFormularioCliente.textContent = "Editar cliente";
+  botaoSalvarCliente.textContent = "Atualizar cliente";
+  botaoCancelarEdicao.classList.remove("escondido");
+  formularioCliente.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function limparModoEdicao() {
+  clienteEmEdicaoId = null;
+  tituloFormularioCliente.textContent = "Cadastrar cliente";
+  botaoSalvarCliente.textContent = "Salvar cliente";
+  botaoCancelarEdicao.classList.add("escondido");
+}
+
 function renderizarClientes(clientes) {
   listaClientes.innerHTML = "";
 
   if (!clientes.length) {
     const linha = document.createElement("tr");
     linha.className = "linha-vazia";
-    linha.innerHTML = '<td colspan="5">Nenhum cliente encontrado.</td>';
+    linha.innerHTML = '<td colspan="6">Nenhum cliente encontrado.</td>';
     listaClientes.appendChild(linha);
     totalClientes.textContent = "0";
     return;
@@ -82,13 +115,84 @@ function renderizarClientes(clientes) {
 
   clientes.forEach(function (cliente) {
     const linha = document.createElement("tr");
-    linha.innerHTML = `
-      <td>${cliente.nome || "-"}</td>
-      <td>${formatarCpf(cliente.cpf)}</td>
-      <td>${formatarTelefone(cliente.telefone)}</td>
-      <td>${cliente.email || "-"}</td>
-      <td>${cliente.cidade || "-"}</td>
-    `;
+
+    const celulaNome = document.createElement("td");
+    celulaNome.textContent = cliente.nome || "-";
+
+    const celulaCpf = document.createElement("td");
+    celulaCpf.textContent = formatarCpf(cliente.cpf);
+
+    const celulaTelefone = document.createElement("td");
+    celulaTelefone.textContent = formatarTelefone(cliente.telefone);
+
+    const celulaEmail = document.createElement("td");
+    celulaEmail.textContent = cliente.email || "-";
+
+    const celulaCidade = document.createElement("td");
+    celulaCidade.textContent = cliente.cidade || "-";
+
+    const celulaAcoes = document.createElement("td");
+    const acoes = document.createElement("div");
+    acoes.className = "acoes-linha";
+
+    const botaoEditar = document.createElement("button");
+    botaoEditar.type = "button";
+    botaoEditar.className = "botao-acao";
+    botaoEditar.textContent = "Editar";
+    botaoEditar.addEventListener("click", function () {
+      ativarModoEdicao(cliente);
+    });
+
+    const botaoApagar = document.createElement("button");
+    botaoApagar.type = "button";
+    botaoApagar.className = "botao-acao botao-apagar";
+    botaoApagar.textContent = "Apagar";
+    botaoApagar.addEventListener("click", async function () {
+      const token = obterToken();
+      if (!token) {
+        window.location.href = "../login/login.html";
+        return;
+      }
+
+      const confirmado = window.confirm(`Deseja apagar o cliente ${cliente.nome || "selecionado"}?`);
+      if (!confirmado) {
+        return;
+      }
+
+      try {
+        const resposta = await fetch(`${URL_API}/clientes/${cliente.id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const dados = await resposta.json();
+        if (!resposta.ok) {
+          mostrarMensagem(mensagemCliente, dados.message || "Não foi possível apagar o cliente.", "erro");
+          return;
+        }
+
+        if (clienteEmEdicaoId === cliente.id) {
+          formularioCliente.reset();
+          limparModoEdicao();
+        }
+
+        mostrarMensagem(mensagemCliente, dados.message || "Cliente apagado com sucesso.", "sucesso");
+        await carregarClientes();
+      } catch (erro) {
+        mostrarMensagem(mensagemCliente, "Não foi possível conectar ao backend.", "erro");
+      }
+    });
+
+    acoes.appendChild(botaoEditar);
+    acoes.appendChild(botaoApagar);
+    celulaAcoes.appendChild(acoes);
+
+    linha.appendChild(celulaNome);
+    linha.appendChild(celulaCpf);
+    linha.appendChild(celulaTelefone);
+    linha.appendChild(celulaEmail);
+    linha.appendChild(celulaCidade);
+    linha.appendChild(celulaAcoes);
     fragmento.appendChild(linha);
   });
 
@@ -153,8 +257,10 @@ formularioCliente.addEventListener("submit", async function (evento) {
   }
 
   try {
-    const resposta = await fetch(`${URL_API}/clientes`, {
-      method: "POST",
+    const resposta = await fetch(
+      clienteEmEdicaoId ? `${URL_API}/clientes/${clienteEmEdicaoId}` : `${URL_API}/clientes`,
+      {
+      method: clienteEmEdicaoId ? "PUT" : "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`
@@ -168,12 +274,23 @@ formularioCliente.addEventListener("submit", async function (evento) {
       return;
     }
 
-    mostrarMensagem(mensagemCliente, dados.message || "Cliente salvo.", "sucesso");
+    mostrarMensagem(
+      mensagemCliente,
+      dados.message || (clienteEmEdicaoId ? "Cliente atualizado." : "Cliente salvo."),
+      "sucesso"
+    );
     formularioCliente.reset();
+    limparModoEdicao();
     await carregarClientes();
   } catch (erro) {
     mostrarMensagem(mensagemCliente, "Não foi possível conectar ao backend.", "erro");
   }
+});
+
+botaoCancelarEdicao.addEventListener("click", function () {
+  formularioCliente.reset();
+  limparModoEdicao();
+  limparMensagem(mensagemCliente);
 });
 
 formularioImportacao.addEventListener("submit", async function (evento) {

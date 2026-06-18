@@ -61,21 +61,11 @@
       "id": 1,
       "nome": "Maria Silva",
       "cpf": "12345678901",
-      "telefone": "11999998888",
+      "telefone": "11999998887",
       "email": "maria.silva@gmail.com",
       "cidade": "Sao Paulo",
       "created_at": "2026-06-17T16:47:18.534Z",
-      "updated_at": "2026-06-17T16:47:18.534Z"
-    },
-    {
-      "id": 2,
-      "nome": "Cliente Google Form",
-      "cpf": "32165498700",
-      "telefone": "11988887777",
-      "email": "cliente.form@gmail.com",
-      "cidade": "Campinas",
-      "created_at": "2026-06-17T16:51:14.860Z",
-      "updated_at": "2026-06-17T16:51:14.860Z"
+      "updated_at": "2026-06-18T01:12:53.692Z"
     }
   ]
 }

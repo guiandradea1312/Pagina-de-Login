@@ -573,6 +573,97 @@ async function startServer() {
     }
   });
 
+  app.put("/api/clientes/:id", authMiddleware, async function updateClient(request, response) {
+    try {
+      const id = Number(request.params.id);
+      const nome = toNullable(request.body.nome);
+      const cpf = normalizeCpf(request.body.cpf);
+      const telefone = toNullable(normalizePhone(request.body.telefone));
+      const email = normalizeClientEmail(request.body.email);
+      const cidade = toNullable(request.body.cidade);
+
+      if (!Number.isInteger(id) || id <= 0) {
+        response.status(400).json({ message: "Cliente inválido." });
+        return;
+      }
+
+      if (!nome || !cpf || !cidade) {
+        response.status(400).json({ message: "Informe nome, CPF e cidade." });
+        return;
+      }
+
+      if (cpf.length !== 11) {
+        response.status(400).json({ message: "CPF inválido." });
+        return;
+      }
+
+      if (telefone && (telefone.length < 10 || telefone.length > 11)) {
+        response.status(400).json({ message: "Telefone inválido." });
+        return;
+      }
+
+      const result = await query(
+        `
+          UPDATE clients
+          SET nome = $1,
+              cpf = $2,
+              telefone = $3,
+              email = $4,
+              cidade = $5,
+              updated_at = NOW()
+          WHERE id = $6
+          RETURNING id, nome, cpf, telefone, email, cidade, created_at
+        `,
+        [nome, cpf, telefone, email, cidade, id]
+      );
+
+      if (result.rows.length === 0) {
+        response.status(404).json({ message: "Cliente não encontrado." });
+        return;
+      }
+
+      await persistLocalData();
+      response.json({ message: "Cliente atualizado com sucesso.", client: publicClient(result.rows[0]) });
+    } catch (error) {
+      if (error && error.code === "23505") {
+        response.status(409).json({ message: "Já existe cliente com este CPF." });
+        return;
+      }
+
+      response.status(500).json({ message: "Erro ao atualizar cliente." });
+    }
+  });
+
+  app.delete("/api/clientes/:id", authMiddleware, async function deleteClient(request, response) {
+    try {
+      const id = Number(request.params.id);
+
+      if (!Number.isInteger(id) || id <= 0) {
+        response.status(400).json({ message: "Cliente inválido." });
+        return;
+      }
+
+      const result = await query(
+        `
+          DELETE FROM clients
+          WHERE id = $1
+          RETURNING id
+        `,
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        response.status(404).json({ message: "Cliente não encontrado." });
+        return;
+      }
+
+      await persistLocalData();
+      response.json({ message: "Cliente apagado com sucesso." });
+    } catch (error) {
+      response.status(500).json({ message: "Erro ao apagar cliente." });
+    }
+  });
+
   app.post("/api/public/clientes", async function createClientPublic(request, response) {
     try {
       if (!FORM_API_KEY) {

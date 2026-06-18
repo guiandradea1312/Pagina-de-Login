@@ -16,6 +16,14 @@
 
     <div class="acoes-cabecalho">
       <a class="botao-outline" href="../perfil/perfil.html">Voltar ao perfil</a>
+      <a
+        class="botao-outline"
+        href="https://docs.google.com/forms/d/e/1FAIpQLSfMd9L9X5oFHnV_zzkjR9eiSJ1VXuwtTkcpbzRkRSV5N9Pepw/viewform"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Formulário público
+      </a>
       <button id="botaoSair" type="button">Sair</button>
     </div>
   </header>
@@ -42,7 +50,7 @@
           <div class="cabecalho-cartao">
             <div>
               <p class="eyebrow">Novo cliente</p>
-              <h2>Cadastrar cliente</h2>
+              <h2 id="tituloFormularioCliente">Cadastrar cliente</h2>
             </div>
           </div>
 
@@ -62,7 +70,10 @@
             <label for="cidade">Cidade</label>
             <input id="cidade" type="text" placeholder="Cidade" required>
 
-            <button type="submit">Salvar cliente</button>
+            <div class="grupo-acoes-form">
+              <button id="botaoSalvarCliente" type="submit">Salvar cliente</button>
+              <button id="botaoCancelarEdicao" type="button" class="botao-secundario escondido">Cancelar edição</button>
+            </div>
           </form>
           <p id="mensagemCliente" class="mensagem"></p>
         </section>
@@ -128,6 +139,7 @@
                   <th>Telefone</th>
                   <th>E-mail</th>
                   <th>Cidade</th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody id="listaClientes"></tbody>

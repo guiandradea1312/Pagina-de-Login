@@ -128,6 +128,12 @@ h1 {
   gap: 12px;
 }
 
+.grupo-acoes-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 label {
   font-size: 14px;
   font-weight: 700;
@@ -259,6 +265,29 @@ td {
   text-align: center;
   color: #9a3412;
   padding: 28px 16px;
+}
+
+.acoes-linha {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.botao-acao {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  background: #fb923c;
+  color: #fff;
+  box-shadow: none;
+}
+
+.botao-apagar {
+  background: #dc2626;
+}
+
+.escondido {
+  display: none;
 }
 
 @media (max-width: 1080px) {
